@@ -7,16 +7,19 @@ title: Default title
     <link rel="stylesheet" href="/style/app.css">
   </head>
   <body>
-    <div class="header">
-      <a href="/">Home</a>
-    </div>
-    <div class="content">
-      {{ content }}
-    </div>
-    <footer>
-      <p>
-        Created by {{ site.author.name }}
-      </p>
-    </footer>
+
+    <main class="wrapper">
+      <div class="header">
+        <a href="/">Home</a>
+      </div>
+      <div class="content">
+        {{ content }}
+      </div>
+      <footer>
+        <p>
+          Created by {{ site.author.name }}
+        </p>
+      </footer>
+    </main>
   </body>
 </html>
