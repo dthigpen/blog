@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+{{> _head.html}}
+<body>
+
+  {{> _header.html}}
+
+  <main{{^draft}} data-pagefind-body{{/draft}}>
+    <article>
+      <h1>{{title}}</h1>
+      <hr>
+
+      {{{body}}}
+    </article>
+  </main>
+
+  {{> _footer.html}}
+
+</body>
+</html>
