@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title><![CDATA[ David&#39;s Blog ]]></title>
+    <link>https://dthigpen.github.io/blog</link>
+    <atom:link href="https://dthigpen.github.io/blog/feed.rss" rel="self" type="application/rss+xml"/>
+    <description><![CDATA[ The feed of updates to David&#39;s Blog ]]></description>
+    <item>
+  <title><![CDATA[ Dead Simple File Backups ]]></title>
+  <link>https://dthigpen.github.io/blog/dead-simple-file-backups</link>
+  <guid isPermaLink="false">bic_s62k8jaGonyxSfHYik9EJchM31eg</guid>
+  <pubDate>Sun, 06 Apr 2025 11:58:22 -0600</pubDate>
+  <description><![CDATA[ <h2 id="introduction">Introduction</h2>
+<p>I like to make backups of important records, photos I have taken over the years and generally anything I think might be useful. It’s an easy task: compress, encrypt, and copy to a hard drive, USB, or cloud storage. When I started doing this I would forget the commands when it was time to make a backup again, forcing me to scour my Bash history for clues. This post attempts to make a simple Bash script to automate the annoying bits and allow us to make file backups in seconds.</p>
+<h2 id="why-not-use-">Why Not Use …</h2>
+<p>There are plenty of good backup solutions out there, offering things like incremental backups (Restic), cloud integration, etc. For my own use cases, I don’t need any of those features, and requiring specific binaries or a complex setup is just not worth it. As an exercise in determining what I need, I ask myself if I had to restore my backups to brand new computer or phone, how complicated would it be? So today, we’ll be going back to basics with our own script and learn some Unix commands in the process.</p>
+<h2 id="compression">Compression</h2>
+<p>Compressing the file or directory will not only save on space, but in the case of a directory consolidate it into a single file. There are numerous compression algorithms out there with various tradeoffs between compression ratio and speed, but for my purposes I just want something well supported with a reasonable compression ratio. Candidates include <strong>tar.gz</strong> and <strong>zip</strong>. I like tar.gz because it is ubiquitous with Linux but on the other hand zip is ubiquitous to Windows and probably more common overall. It’s simple to create bash functions with either one.</p>
+<pre class="bash"><code>function targz_compress {
+    local input_path=&quot;${1?Must provide an input path to compress}&quot;
+    local output_path=&quot;${2?Must provide an output file path}&quot;
+    tar -czvf &quot;${output_path}&quot; &quot;${input_path}&quot;
+}
+
+function targz_decompress {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    tar -xzvf &quot;${input_path}&quot; -C &quot;${output_path}&quot;
+}</code></pre>
+<p><strong>Note 1:</strong> The zip versions of these functions will be available in the full script at the end and in the repository.</p>
+<h2 id="encryption">Encryption</h2>
+<p>Encrypting the compressed file will make it unreadable without the specified key. Again, there are numerous algorithms out there that could work depending on your threat model. Many linux distributions have <code>gpg</code> built-in and but even <code>zip</code> has a password encryption feature (AES-256).</p>
+<pre class="bash"><code>function targz_encrypt {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    
+    gpg --symmetric --cipher-algo AES256 --output &quot;${output_path}&quot; &quot;${input_path}&quot;
+}
+
+function targz_decrypt {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+
+    gpg --output &quot;${output_path}&quot; --decrypt &quot;${input_path}&quot;
+    
+}</code></pre>
+<p><strong>Note 1:</strong> Make sure to use a strong high-entropy password here. A good way to do this is with a password manager.</p>
+<p><strong>Note 2:</strong> When using password protected zip files, the file paths are not encrypted! This is because each of the files themselves are encrypted within the zip, not the zip data itself. However, this doesn’t actually matter here since we put everything into a single archive file in the first step!</p>
+<h2 id="backup-and-restore">Backup and Restore</h2>
+<p>At this point we have a few bash functions that can do some solid compression and encryption operations, but its far from useful. Let’s make it a little more manageable by linking the operations together into backup and restore functions.</p>
+<pre class="bash"><code>function make_backup {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+
+    local tmp_path=&quot;tmp.tar.gz&quot;
+    rm -f &quot;${tmp_path}&quot;
+    targz_compress &quot;${input_path}&quot; &quot;${tmp_path}&quot;
+    targz_encrypt &quot;${tmp_path}&quot; &quot;${output_path}&quot;
+    rm -f &quot;${tmp_path}&quot;
+}
+
+function restore_backup {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    
+    local tmp_path=&quot;tmp.tar.gz&quot;
+    rm -rf &quot;${tmp_path}&quot;
+    targz_decrypt &quot;${input_path}&quot; &quot;${tmp_path}&quot;
+    targz_decompress &quot;${tmp_path}&quot; &quot;${output_path}&quot;
+    rm -rf &quot;${tmp_path}&quot;
+}
+</code></pre>
+<p><strong>Note 1:</strong> Currently, these functions put the temp file in the working directory, but that’s not great. To make this more robust it should be moved to a real temp file location (using <code>mktemp</code>) and removed upon any exit signal so that no lingering unencrypted data is left around. That will be done in the final version of the script.</p>
+<h2 id="argument-parsing">Argument Parsing</h2>
+<p>Next we need a way of interacting with the script. We want it to be as simple as possible, both for our future self to remember what to pass the script and our current self writing the parser.</p>
+<p>For example, creating a backup in a specific directory might look like:</p>
+<pre class="bash"><code>$ backup_tool backup media/ -d ~/backups</code></pre>
+<p>Similarly, restoring files to a directory from a backup might look like:</p>
+<pre class="bash"><code>$ backup_tool restore ~/backups/media.tar.gz.gpg -d ~/restored-files</code></pre>
+<p>We can use familiar Bash constructs to break out the positional arguments and read the option values. This is also a good chance to work in s few improvements. First, batch processing by taking in an array of directories or backup files. Second, a passphrase entry so that it on ly needs to be input once instead of for each item in the batch.</p>
+<pre class="bash"><code>function parse_args {
+    POSITIONAL_ARGUMENTS=()
+    CUSTOM_OUTPUT_DIR=&#39;&#39;
+    ACTION=&#39;&#39;
+    FILES_TO_PROCESS=()
+    ENC_PASSWD=&#39;&#39;
+    USE_ENC_PASSWD=&#39;false&#39;
+    while [[ $# -gt 0 ]]; do
+        msg &quot;ARG: ${1-}&quot;
+        case &quot;${1-}&quot; in
+            -h | --help) usage ;;
+            -d | --destination)
+                CUSTOM_OUTPUT_DIR=&quot;${2-}&quot;
+                shift
+                if [[ ! -d &quot;${CUSTOM_OUTPUT_DIR}&quot; ]]
+                then
+                    msg &quot;${CUSTOM_OUTPUT_DIR} must be an existing directory&quot;
+                    exit 1
+                fi
+                ;;
+            -p) USE_ENC_PASSWD=&#39;true&#39;;;
+            -?*) die &quot;Unknown option: $1&quot; ;;
+            *) POSITIONAL_ARGUMENTS+=( &quot;${1-}&quot; ) ;;
+        esac
+        shift
+    done
+    if [[ ${#POSITIONAL_ARGUMENTS[@]} -lt 2 ]]
+    then
+        die &quot;Must provide more arguments. See usage with --help&quot;
+    fi
+
+    if [[ &quot;${USE_ENC_PASSWD}&quot; == &#39;true&#39; ]]
+    then
+        local tmp_input=&#39;&#39;
+        # TODO add logic to handle verifying password AND looping for non matching or empty input
+        read -s -p &#39;Enter encryption password: &#39; ENC_PASSWD
+        msg &#39;&#39;
+    fi
+    ACTION=&quot;${POSITIONAL_ARGUMENTS[0]}&quot;
+    FILES_TO_PROCESS=( &quot;${POSITIONAL_ARGUMENTS[@]:1}&quot; )
+}</code></pre>
+<h2 id="bringing-it-all-together">Bringing it all Together</h2>
+<p>Now that we have our backup functions and argument parsing we can put it all together in the main function.</p>
+<pre class="bash"><code>function main {
+    if [[ &quot;${ACTION}&quot; != &#39;backup&#39; &amp;&amp; &quot;${ACTION}&quot; != &#39;restore&#39; ]]
+    then
+        die &#39;First argument must be either &quot;backup&quot; or &quot;restore&quot;&#39;
+    fi
+    for f in &quot;${FILES_TO_PROCESS[@]}&quot;
+    do
+        if [[ ! -e &quot;${f}&quot; ]]
+        then
+            msg &quot;${f} must be an existing file or directory&quot;
+            exit 1
+        fi
+        local input_path=&quot;${f}&quot;
+        local input_filename=&quot;$(basename &quot;${input_path}&quot;)&quot;
+        local input_dir=&quot;$(dirname &quot;${input_path}&quot;)&quot;
+        local output_dir=&quot;${CUSTOM_OUTPUT_DIR:-${PWD}}&quot;
+        mkdir -p &quot;${output_dir}&quot;
+        local timestamp=&quot;$(date +&quot;%Y%m%d%H%M&quot; )&quot;
+        if [[ &quot;${ACTION}&quot; == &#39;backup&#39; ]]
+        then
+            msg &quot;Reading file or directory to archive at: ${input_path}&quot;
+            local backup_output_filename=&quot;${input_filename}.backup_${timestamp}${BACKUP_EXTENSION}&quot;
+            local backup_output_path=&quot;${output_dir}/${backup_output_filename}&quot;
+            make_backup &quot;${input_path}&quot; &quot;${backup_output_path}&quot;
+            msg &quot;Backup file created at: ${backup_output_path}&quot;
+        elif [[ &quot;${ACTION}&quot; == &#39;restore&#39; ]]
+        then
+            restore_backup &quot;${input_path}&quot; &quot;${output_dir}&quot;
+            msg &quot;Restored ${input_path} to directory ${output_dir}&quot;
+        fi
+    done
+}</code></pre>
+<p>That’s really all there is to it, in under 250 lines of Bash we have a stellar file backup utility! Check out the <a href="https://github.com/dthigpen/backup">source code</a> on GitHub for the full script.</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ Hello World ]]></title>
+  <link>https://dthigpen.github.io/blog/hello-world</link>
+  <guid isPermaLink="false">bic_GkowUcnUYI5A2XB3x9Qrs7PV10z4</guid>
+  <pubDate>Fri, 11 Apr 2025 20:33:55 -0600</pubDate>
+  <description><![CDATA[ <p>Not much to see just yet, hopefully more posts to come!</p>
+<p>But while I have you here, I’ll tell you a bit about my interests that may come up in posts.</p>
+<h2 id="computing">Computing</h2>
+<p>Computing is a pretty important part of my life. I’ve had an affinity toward building (the digital) things for most of my life. Predictably, I’m a software engineer by trade and nothing gives me more satisfaction than solving problems with code! My side projects are usually anything from web apps to ESP32 trinkets.</p>
+<h2 id="sustainability">Sustainability</h2>
+<p>More recently I’ve started trying to live a more sustainable life. It’s been exciting making those changes and I look forward to learning more. One idea that I want to explore more deeply is <a href="https://permacomputing.net/">permacomputing</a>. I love the idea of making our digital footprint less wasteful and more intentional.</p>
+<h2 id="nature">Nature</h2>
+<p>During the warmer months I enjoy hiking and camping in the great outdoors. Nothing beats stepping away from technology completely and taking in the undescribable beauty of nature!</p> ]]></description>
+</item>
+
+  </channel>
+</rss>
