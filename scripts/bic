@@ -1,0 +1,430 @@
+#!/usr/bin/env bash
+#
+# bic - minimal static site/blog generator.
+# Paul Esch-Laurent <p@uly.io>
+# MIT licensed: https://pinjasaur.mit-license.org/2021
+
+# Strict settings
+set -o errexit
+set -o pipefail
+set -o nounset
+
+# Enable protection of overwriting existing files via redirection
+set -o noclobber
+
+# "Magic" variables
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+__file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
+__base="$(basename "${__file}" .sh)"
+
+# shellcheck disable=SC1091,SC1090
+source "${__dir}"/lib/mo
+
+# Based on https://github.com/davidmerfield/Blot/blob/03a99428e29b8ff5ecde09a9abf7011d38a64d93/app/build/converters/markdown/convert.js
+# Full extensions: https://pandoc.org/MANUAL.html#extensions
+PANDOC_EXTS="+autolink_bare_uris+gfm_auto_identifiers+task_lists"
+PANDOC_ARGS=(-f markdown"${PANDOC_EXTS:-}" -t html5 --columns 1000 --no-highlight --email-obfuscation=none)
+
+TAG_PREFIX="tags:"
+
+# Print out usage information
+usage() {
+  cat <<HEREDOC
+Usage:
+  ${__base} [<arguments>]
+  Builds a static site (blog) from Markdown files.
+
+Options:
+  -h --help  Show this.
+HEREDOC
+}
+
+fatal() {
+  log "[FATAL] ${*:-}" 1>&2
+  exit 1
+}
+
+warn() {
+  log "[WARN] ${*:-}" 1>&2
+}
+
+log() {
+  echo "${__base}: ${*:-}"
+}
+
+# slug-ify a string, modified from: https://blog.codeselfstudy.com/blog/how-to-slugify-strings-in-bash/
+slugify() {
+  echo "${1:-}" | sed -e 's/[^[:alnum:]]/-/g' | tr -s '-' | tr '[:upper:]' '[:lower:]'
+}
+
+html_escape() {
+  echo "${1:-}" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g'
+}
+
+__has_tags() {
+  local tagline
+  tagline="$(head -n 2 < "${1}" | tail -n 1)"
+  [[ "$tagline" == "$TAG_PREFIX"* ]] && return 0
+  return 1
+}
+
+mk_title() {
+  local title
+  title="$(head -n 1 < "${1}")"
+  if ! echo "${title:-}" | grep -Eq '^#'; then
+    fatal "First line must be a top-level heading: ${1}"
+  fi
+  html_escape "$(echo "${title}" | sed -E 's/^# //')"
+}
+
+mk_body() {
+  if __has_tags "${1}"; then
+    pandoc "${PANDOC_ARGS[@]}" <(tail -n +3 "${1}")
+  else
+    pandoc "${PANDOC_ARGS[@]}" <(tail -n +2 "${1}")
+  fi
+}
+
+mk_tags() {
+  if __has_tags "${1}"; then
+    local tagline split
+    tagline="$(head -n 2 < "${1}" | tail -n 1)"
+    split="$(echo "${tagline#"$TAG_PREFIX"}" | tr -d '[:space:]')"
+    IFS=',' read -r -a tags <<< "$split"
+    echo "${tags[@]}"
+  fi
+}
+
+mk_slug() {
+  slugify "${1}"
+}
+
+mk_date() {
+  TZ="${TIMEZONE:-US/Central}" date -r "${1}" "${DATE_FORMAT:-+%F}"
+}
+
+mk_id() {
+  local id="${1%-"${2}"}"
+  if ! echo "${id:-}" | grep -Eq '^[[:digit:]]+$'; then
+    fatal "Number prefix is required: ${1}"
+  fi
+  local sqid
+  sqid="$("${__dir}"/lib/sqids -e -l 28 "${id}")"
+  echo "${__base}_${sqid}"
+}
+
+# --- The "line" between utility and core functions. ---
+
+# `source` a file: https://stackoverflow.com/a/30969768
+src() {
+  # set -o allexport # enable exporting (even if not specified in file)
+  # shellcheck disable=SC1090
+  source "${1}"
+  # set +o allexport # disable
+}
+
+build_pages() {
+  [[ ! -d "${SRC_DIR}"/pages || ! -f "${SRC_DIR}"/page.html ]] && return
+  ALL_PAGES=()
+  for page in "${SRC_DIR}"/pages/*.md; do
+    log "Building page: ${page}"
+    ALL_PAGES+=("${page}")
+    local filename slug
+    filename="$(basename "${page}")"
+
+    (
+      title="$(mk_title "${page}")"
+      body="$(mk_body "${page}")"
+      slug="$(slugify "${filename%.md}")"
+      export title body slug
+      mo \
+        "${SRC_DIR}"/page.html \
+        > "${DEST_DIR}/${slug}.html"
+    )
+  done
+  unset page
+}
+
+build_posts() {
+  [[ ! -d "${SRC_DIR}"/posts || ! -f "${SRC_DIR}"/entry.html ]] && return
+  ALL_POSTS=()
+  for _post in "${SRC_DIR}"/posts/*.md; do
+    log "Building post: ${_post}"
+    [[ "${_post}" =~ \| ]] && fatal "Filename cannot contain a pipe literal (used internally for delimitting tagged entries)"
+    ALL_POSTS+=("${_post}")
+    local filename filename_sans_id tags=()
+    filename="$(basename "${_post}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    for _tag in $(mk_tags "${_post}"); do
+      local slug
+      slug="$(mk_slug "${_tag}")"
+      tags+=("${slug}")
+      if [[ -n "${ALL_TAGS["${slug}"]:-}" ]]; then
+        ALL_TAGS["${slug}"]+="|${_post}"
+      else
+        ALL_TAGS["${slug}"]="${_post}"
+      fi
+    done
+
+    (
+      post=true
+      title="$(mk_title "${_post}")"
+      body="$(mk_body "${_post}")"
+      date="$(mk_date "${_post}")"
+      slug="$(mk_slug "${filename_sans_id%.md}")"
+      id="$(mk_id "${filename}" "${filename_sans_id}")"
+      export title body date slug id post tags
+      mo \
+        "${SRC_DIR}"/entry.html \
+        > "${DEST_DIR}/${slug}.html"
+    )
+  done
+  unset _post
+}
+
+build_drafts() {
+  [[ ! -d "${SRC_DIR}"/drafts || ! -f "${SRC_DIR}"/entry.html ]] && return
+  ALL_DRAFTS=()
+  for _draft in "${SRC_DIR}"/drafts/*.md; do
+    log "Building draft: ${_draft}"
+    ALL_DRAFTS+=("${_draft}")
+    local filename filename_sans_id tags=()
+    filename="$(basename "${_draft}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    for _tag in $(mk_tags "${_draft}"); do
+      local slug
+      slug="$(mk_slug "${_tag}")"
+      tags+=("${slug}")
+    done
+    mkdir -p "${DEST_DIR}"/drafts
+
+    (
+      draft=true
+      title="$(mk_title "${_draft}")"
+      body="$(mk_body "${_draft}")"
+      date="$(mk_date "${_draft}")"
+      slug="$(mk_slug "${filename_sans_id%.md}")"
+      id="$(mk_id "${filename}" "${filename_sans_id}")"
+      export title body date slug id draft tags
+      mo \
+        "${SRC_DIR}"/entry.html \
+        > "${DEST_DIR}/drafts/${slug}.html"
+    )
+  done
+  unset _draft
+}
+
+build_tags() {
+  [[ ! -f "${SRC_DIR}"/tags.html || ! -f "${SRC_DIR}"/tag.html || ! -f "${SRC_DIR}"/__tag.html ]] && return
+
+  declare -A all_tags
+  for tag in "${!ALL_TAGS[@]}"; do
+    IFS='|' read -r -a posts <<< "${ALL_TAGS["${tag}"]}"
+    all_tags["${tag}"]="${#posts[@]}"
+    build_tag "${tag}"
+  done
+
+  log "Building tags.html"
+  (
+    title="All tags"
+    export title all_tags
+    mo \
+      "${SRC_DIR}"/tags.html \
+      > "${DEST_DIR}"/tags.html
+  )
+}
+
+build_tag() {
+  log "Building tags/${1}.html"
+
+  local __tag=""
+  local _posts
+  local tag="${1}"
+  IFS='|' read -r -a posts <<< "${ALL_TAGS["${tag}"]}"
+  for post in "${posts[@]}"; do
+    local filename filename_sans_id title date slug id
+    filename="$(basename "${post}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    title="$(mk_title "${post}")"
+    date="$(mk_date "${post}")"
+    slug="$(mk_slug "${filename_sans_id%.md}")"
+    id="$(mk_id "${filename}" "${filename_sans_id}")"
+    __tag+="$(mo "${SRC_DIR}"/__tag.html)"
+    __tag+=$'\n'
+  done
+
+  mkdir -p "${DEST_DIR}"/tags
+  (
+    title="All posts tagged ${tag}"
+    export __tag title tag
+    mo \
+      "${SRC_DIR}"/tag.html \
+      > "${DEST_DIR}/tags/${tag}.html"
+  )
+}
+
+build_index() {
+  log "Building index.html"
+
+  local __index=""
+  for post in "${ALL_POSTS[@]}"; do
+    local filename filename_sans_id title date slug id
+    filename="$(basename "${post}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    title="$(mk_title "${post}")"
+    date="$(mk_date "${post}")"
+    slug="$(mk_slug "${filename_sans_id%.md}")"
+    id="$(mk_id "${filename}" "${filename_sans_id}")"
+    __index+="$(mo "${SRC_DIR}"/__index.html)"
+    __index+=$'\n'
+  done
+
+  (
+    title="All posts"
+    export __index title
+    mo \
+      "${SRC_DIR}"/index.html \
+      > "${DEST_DIR}"/index.html
+  )
+}
+
+build_sitemap() {
+  [[ ! -f "${SRC_DIR}"/sitemap.xml ]] && return
+  log "Building sitemap.xml"
+
+  local slugs=()
+
+  for page in "${ALL_PAGES[@]}"; do
+    local filename filename_sans_id title date slug id
+    filename="$(basename "${page}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    slug="$(mk_slug "${filename_sans_id%.md}")"
+    slugs+=("$(html_escape "${slug}")")
+  done
+
+  for post in "${ALL_POSTS[@]}"; do
+    local filename filename_sans_id title date slug id
+    filename="$(basename "${post}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    slug="$(mk_slug "${filename_sans_id%.md}")"
+    slugs+=("$(html_escape "${slug}")")
+  done
+
+  if [[ -f "${SRC_DIR}"/tags.html && -f "${SRC_DIR}"/tag.html && -f "${SRC_DIR}"/__tag.html ]]; then
+    slugs+=("$(html_escape "tags")")
+    for tag in "${!ALL_TAGS[@]}"; do
+      slugs+=("$(html_escape "tags/${tag}")")
+    done
+  fi
+
+  (
+    export slugs
+    mo \
+      "${SRC_DIR}"/sitemap.xml \
+      > "${DEST_DIR}"/sitemap.xml
+  )
+  unset slugs
+}
+
+build_robots() {
+  [[ ! -f "${SRC_DIR}/robots.txt" ]] && return
+  log "Building robots.txt"
+
+  (
+    mo \
+      "${SRC_DIR}"/robots.txt \
+      > "${DEST_DIR}"/robots.txt
+  )
+}
+
+build_feed() {
+  [[ ! -f "${SRC_DIR}"/feed.rss || ! -f "${SRC_DIR}"/__feed.rss ]] && return
+  log "Building feed.rss"
+
+  local __feed=""
+  for post in "${ALL_POSTS[@]}"; do
+    local filename filename_sans_id title body date slug id
+    filename="$(basename "${post}")"
+    filename_sans_id="$(echo "${filename}" | sed -E 's/^[0-9]+-//')"
+    title="$(mk_title "${post}")"
+    body="$(mk_body "${post}")"
+    date="$(DATE_FORMAT="-R" mk_date "${post}")"
+    slug="$(mk_slug "${filename_sans_id%.md}")"
+    id="$(mk_id "${filename}" "${filename_sans_id}")"
+    __feed+="$(mo "${SRC_DIR}"/__feed.rss)"
+    __feed+=$'\n'
+  done
+
+  (
+    export __feed
+    mo \
+      "${SRC_DIR}"/feed.rss \
+      > "${DEST_DIR}"/feed.rss
+  )
+}
+
+build_static() {
+  [[ ! -d "${SRC_DIR}"/static ]] && return
+  log "Building /static -> /"
+  # Archive by default
+  local args=(-a)
+  # And run interactively so as to not clobber files unless explicitly disabled
+  [[ -z "${BIC_OVERWRITE:-}" ]] && args+=(-i)
+  # shellcheck disable=SC2216
+  echo n | cp "${args[@]}" "${SRC_DIR}"/static/. "${DEST_DIR}"
+}
+
+build() {
+  src "${__dir}"/.env && log "Application .env sourced"
+  SRC_DIR="${1:-$__dir}"
+  # Only source if it's actually custom
+  [[ "${SRC_DIR}" != "${__dir}" ]] && [[ -f "${SRC_DIR}"/.env ]] && src "${SRC_DIR}"/.env && log "Custom .env sourced"
+  DEST_DIR="${SRC_DIR}/${BUILD_DIR:-build}"
+  log "Using source directory: ${SRC_DIR}"
+  [[ -n "${BIC_OVERWRITE:-}" ]] && set +o noclobber && warn "Disabled overwrite protection"
+
+  # File system: what's missing and do we need to bail?
+  [[ -d "${SRC_DIR}"/pages && -f "${SRC_DIR}"/page.html  ]] || warn "pages/ + page.html for pages"
+  [[ -d "${SRC_DIR}"/posts && -f "${SRC_DIR}"/entry.html ]] || warn "posts/ + entry.html for posts"
+  [[ -f "${SRC_DIR}"/index.html && -f "${SRC_DIR}"/__index.html                           ]] || fatal "index.html (and __index.html) required"
+  [[ -f "${SRC_DIR}"/feed.rss   && -f "${SRC_DIR}"/__feed.rss                             ]] || warn "feed.rss (and __feed.rss) for an RSS feed"
+  [[ -f "${SRC_DIR}"/tags.html  && -f "${SRC_DIR}"/tag.html && -f "${SRC_DIR}"/__tag.html ]] || warn "tags.html, tag.html (and __tag.html) for tagging entries"
+  [[ -f "${SRC_DIR}"/sitemap.xml ]] || warn "sitemap.xml for a sitemap for search engines"
+  [[ -f "${SRC_DIR}"/robots.txt ]]  || warn "robots.txt for web crawlers"
+
+  # Environment: anything not set that probably should be?
+  [[ -n "${SITE_AUTHOR:-}" ]] || warn "\$SITE_AUTHOR not set"
+  SITE_AUTHOR="$(html_escape "${SITE_AUTHOR:-}")"
+  [[ -n "${SITE_TITLE:-}" ]] || warn "\$SITE_TITLE not set"
+  SITE_TITLE="$(html_escape "${SITE_TITLE:-}")"
+  [[ -n "${SITE_URL:-}" ]] || warn "\$SITE_URL not set"
+
+  [[ -d "${DEST_DIR}" ]] && rm -rf "${DEST_DIR}"
+  mkdir -p "${DEST_DIR}" && log "Created build directory: ${DEST_DIR}"
+
+  # Need to declare this slightly more globally otherwise can't share it across functions 🤷
+  declare -A ALL_TAGS
+
+  build_pages   # side effect(s): $ALL_PAGES
+  build_posts   # side effect(s): $ALL_POSTS, $ALL_TAGS
+  build_drafts  # side effect(s): $ALL_DRAFTS
+  build_tags    # uses $ALL_TAGS
+  build_index   # uses $ALL_POSTS
+  build_sitemap # uses $ALL_PAGES, $ALL_POSTS
+  build_robots
+  build_feed    # uses $ALL_POSTS
+  build_static
+}
+
+# Drive it
+main() {
+  # Parse arguments
+  if [[ "${1:-}" =~ ^-h|--help$ ]]; then
+    usage
+  else
+    build "${1:-}"
+  fi
+}
+
+# Call it
+main "${@:-}"
