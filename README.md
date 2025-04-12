@@ -1,4 +1,4 @@
-# Blog
+# [Blog](https://dthigpen.github.io/blog)
 
 A space to share my thoughts.
 
