@@ -3,7 +3,7 @@ tags: bash, backup
 
 ## Introduction
 
-I like to make backups of important records, photos I have taken over the years and generally anything I think might be useful. It's an easy task: compress, encrypt, and copy to a hard drive, USB, or cloud storage. When I started doing this I would forget the commands when it was time to make a backup again, forcing me to scour my Bash history for clues. This post attempts to make a simple Bash script to automate the annoying bits and allow us to make file backups in seconds.
+I like to make backups of important records, notes, and photos I have taken over the years. My personal process looks like this: compress the important directory, encrypt it, and copy it to a hard drive, USB, or cloud storage. Sounds simple enough, right? While simple, I still found myself scouring my Bash history, trying to remember what options I used with `gpg` and `tar` to create backups the last time. After a few times doing that, it seemed like the perfect candidate for a script. This post shows the makings of a simple Bash script to automate the annoying bits and allow us to make file (and directory) backups in seconds. (Or skip to the end result on [Github](https://github.com/dthigpen/backup))
 
 ## Why Not Use ...
 
