@@ -1,4 +1,4 @@
-# Dead Simple File Backups
+# Simple File Backups
 tags: bash, backup
 
 ## Introduction
