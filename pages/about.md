@@ -10,9 +10,9 @@ In my free time I like to:
 
 ## Skills
 
-Tech: `Python`, `TypeScript`, `React`, `NestJS`, `Bash`, `Kubernetes`
+Tech: `Python`, `TypeScript`, `React`, `NestJS`, `Java`, `Bash`, `Kubernetes`
 
-I also like to dabble in: `C`, `Zig`, `ESP32` microcontrollers, and `Raspberry Pi` projects
+I also like to dabble in: `C`, `ESP32` microcontrollers, and `Raspberry Pi` projects
 
 ## Contact Me
 
