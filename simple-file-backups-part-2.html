@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple File Backups Part 2: Custom Strategies | In Plain Text</title>
+  <link rel="alternate" type="application/rss+xml" title="RSS Feed for In Plain Text" href="/blog/feed.rss">
+  <link rel="stylesheet" href="https://unpkg.com/sanitize.css@^12.0.1/evergreen.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@10.5.0/styles/default.min.css">
+  <link rel="stylesheet" href="/blog/css/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>In Plain Text</h1>
+
+    <nav>
+      <a href="/blog">Home</a>
+      <a href="/blog/search">Search</a>
+      <a href="/blog/about">About</a>
+      <a href="/blog/tags">Tags</a>
+    </nav>
+  </header>
+
+  <main data-pagefind-body>
+    <article>
+      <h1>Simple File Backups Part 2: Custom Strategies</h1>
+      <small>Last modified June 17, 2026</small>
+      <hr>
+
+      <p>A while ago I made a <a href="https://dthigpen.github.io/blog/simple-file-backups">post</a> where I built a simple Bash script to compress and encrypt files for making backups. After using it sporadically, and changing compression/encryption schemes a few times I’ve made a few updates that I wanted to share (Or skip to the final result on <a href="https://github.com/dthigpen/backup">GitHub</a>).</p>
+<p>Now it’s easy to implement a new backup “strategy” using different encryption and compression algorithms. A strategy (or bundle of functions for encryption and compression) can be added to the script, then specified when making backups. For example if I want to use the <code>targz_gpg</code> strategy.</p>
+<pre class="bash"><code>$ ./backup_tool.sh backup /input/dir -d ~/backups -s targz_gpg
+$ ./backup_tool.sh restore ~/backups/foo.tar.gz -d ~/output/dir -s targz_gpg</code></pre>
+<h2 id="how-it-works">How it Works</h2>
+<p>As a refresher, the core logic of the script is quite simple. It’s only a a two step process for creating a backup file:</p>
+<ol type="1">
+<li>original file -&gt; <code>compress()</code> -&gt; compressed file</li>
+<li>compressed file -&gt; <code>encrypt()</code> -&gt; encrypted file (backup file)</li>
+</ol>
+<p>And for restoring a backup its the reverse:</p>
+<ol type="1">
+<li>backup file -&gt; <code>decrypt()</code> -&gt; compressed file</li>
+<li>compressed file -&gt; <code>decompress()</code> -&gt; original file</li>
+</ol>
+<p>These operations: compress, decompress, encrypt, decrypt always do the same thing, the difference lies in the algorithms used for that operation. While the original script is simple enough to update with a different set of compression and encryption algorithms, it wasn’t baked into the design (or as much as you can design in a Bash script anyway).</p>
+<p>Now, its as simple as registering a new strategy with functions each of the four operations. From there the strategy can be called out as an argument to the script. Let’s go over how it works.</p>
+<p>Strategies are registered like this:</p>
+<pre class="bash"><code># unix tar.gz and gpg strategy
+register_strategy &quot;targz_gpg&quot; targz_compress targz_decompress gpg_encrypt gpg_decrypt &quot;.tar.gz.gpg&quot;
+# universal zip and enc zip strategy
+register_strategy &quot;zip_zipenc&quot; zip_compress zip_decompress zip_encrypt zip_decrypt &quot;.zip&quot;</code></pre>
+<p>The <code>register_strategy</code> function takes in an identifier for the strategy, e.g. <code>targz_gpg</code>, the four operation functions, and a file extension (appended when creating backups). In terms of Bash data structures, it’s simply a bunch of associative arrays for each argument:</p>
+<pre class="bash"><code>declare -A COMPRESS_FUNCS
+declare -A DECOMPRESS_FUNCS
+declare -A ENCRYPT_FUNCS
+declare -A DECRYPT_FUNCS
+declare -A EXTENSIONS
+
+# Register a strategy (compression + encryption)
+# usage: register_strategy name compress decompress encrypt decrypt extension
+function register_strategy() {
+  local name=$1
+  shift
+  COMPRESS_FUNCS[&quot;$name&quot;]=$1
+  shift
+  DECOMPRESS_FUNCS[&quot;$name&quot;]=$1
+  shift
+  ENCRYPT_FUNCS[&quot;$name&quot;]=$1
+  shift
+  DECRYPT_FUNCS[&quot;$name&quot;]=$1
+  shift
+  EXTENSIONS[&quot;$name&quot;]=$1
+}</code></pre>
+<p>Once stored, we can now index into them by the name of the strategy to perform our operations. Now the compression and encryption functions become simple wrappers for executing the strategy passed into the script and stored under <code>$BACKUP_STRATEGY</code>.</p>
+<pre class="bash"><code>function compress() { ${COMPRESS_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function decompress() { ${DECOMPRESS_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function encrypt() { ${ENCRYPT_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function decrypt() { ${DECRYPT_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function get_ext() { echo &quot;${EXTENSIONS[$BACKUP_STRATEGY]}&quot;; }</code></pre>
+<h2 id="whats-next">What’s Next</h2>
+<p>There isn’t much more I plan to add since this tool already meets my specific needs but if I get the itch, I might expand it in these areas:</p>
+<ul>
+<li>Allow adding strategies from Bash session or environment: Useful so others would not need to modify the code of the backup tool to use their own strategies.</li>
+<li>Adding a “convert” command to convert backup files from one strategy to another without having to manually restore and re-backup each of them.</li>
+</ul>
+<p>See the full changes on <a href="https://github.com/dthigpen/backup">GitHub</a> and feel free to add an issue or pull request with your own suggestions!</p>
+
+      <hr>
+      <details>
+        <summary>Tags</summary>
+        <ul>
+          <li><a href="/blog/tags/bash">bash</a></li>
+          <li><a href="/blog/tags/backup">backup</a></li>
+        </ul>
+      </details>
+    </article>
+  </main>
+
+  <footer>
+    <p>Opinions are my own.</p>
+    <p>Written with ❤️. Generated by <a href="https://bic.sh/#support" target="_blank" rel="noopener">bic</a>.</p>
+  </footer>
+
+  <script src="//unpkg.com/@highlightjs/cdn-assets@10.5.0/highlight.min.js"></script>
+  <script src="//unpkg.com/mermaid@8.13.10/dist/mermaid.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="//instant.page/5.1.0" type="module" integrity="sha384-by67kQnR+pyfy8yWP4kPO12fHKRLHZPfEsiSXR8u2IKcTdxD805MGUXBzVPnkLHw"></script>
+
+</body>
+</html>

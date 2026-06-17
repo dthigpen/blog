@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Ladders (and How to Generate Them in Python) | In Plain Text</title>
+  <link rel="alternate" type="application/rss+xml" title="RSS Feed for In Plain Text" href="/blog/feed.rss">
+  <link rel="stylesheet" href="https://unpkg.com/sanitize.css@^12.0.1/evergreen.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@10.5.0/styles/default.min.css">
+  <link rel="stylesheet" href="/blog/css/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>In Plain Text</h1>
+
+    <nav>
+      <a href="/blog">Home</a>
+      <a href="/blog/search">Search</a>
+      <a href="/blog/about">About</a>
+      <a href="/blog/tags">Tags</a>
+    </nav>
+  </header>
+
+  <main data-pagefind-body>
+    <article>
+      <h1>Word Ladders (and How to Generate Them in Python)</h1>
+      <small>Last modified June 17, 2026</small>
+      <hr>
+
+      <p>I recently stumbled a word game called a <a href="https://en.wikipedia.org/wiki/Word_ladder">word ladder</a> while looking for small games I could make for my watch.</p>
+<p>The premise is quite simple: start with one word, end with another, and change one letter at a time until you get there. For example:</p>
+<p><code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></p>
+<p>Simple, but surprisingly satisfying, and it turns out to be a great fit for a tiny screen. In this post, I’ll walk through what word ladders are and how to generate them with a bit of Python.</p>
+<h2 id="what-is-a-word-ladder">What Is a Word Ladder?</h2>
+<p>A word ladder is a puzzle where you transform one word into another by changing a single letter at a time. Each step must be a valid word.</p>
+<p>For example: <code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></p>
+<p>Each step changes just one letter, and every intermediate word is a real word.</p>
+<p>Often, the goal is to find the <em>shortest</em> possible chain between the two words, which is where things get interesting.</p>
+<h2 id="a-bit-of-history">A Bit of History</h2>
+<p>Word ladders were actually invented by <a href="https://en.wikipedia.org/wiki/Lewis_Carroll">Lewis Carroll</a> in the late 19th century. He originally called them “Doublets” when he first published them as word puzzles in a magazine.</p>
+<p>They’ve stuck around in various forms ever since.</p>
+<h2 id="generating-word-ladders-in-python">Generating Word Ladders in Python</h2>
+<p>So what does it look like to actually generate these ladders?</p>
+<p>It turns out this maps quite nicely to a graph problem.</p>
+<h3 id="step-1-loading-words">Step 1: Loading Words</h3>
+<p>We need a list of valid words so that all intermediate words make sense. In the next post we will refine the word list, but for now anything will do as long as the words are all the same length (4 or 5 letters).</p>
+<pre class="python"><code>def load_words(path: str):
+    with open(path) as f:
+        return set(word.strip().lower() for word in f)
+
+words = load_words(&#39;words.txt&#39;)</code></pre>
+<h3 id="step-2-find-neighboring-words">Step 2: Find Neighboring Words</h3>
+<p>We need to find the “neighbors” for each word that are one letter away. This will give us all the valid moves that a player can make for each intermediate word.</p>
+<pre class="python"><code>import string
+
+def neighbors(word: str, words: set[str]):
+    for i in range(len(word)):
+        for c in string.ascii_lowercase:
+            if c != word[i]:
+                candidate = word[:i] + c + word[i+1:]
+                if candidate in words:
+                    yield candidate</code></pre>
+<p>For each letter in the given word, we try to replace it with each letter of the alphabet. If the new word is valid, it’s a neighbor. For example, <code>neighbors('cold', words)</code> might yield: <code>cord</code>, <code>sold</code>, <code>bold</code>, <code>...</code>.</p>
+<h3 id="step-3-search-for-a-path">Step 3: Search For a Path</h3>
+<p>Now that we can get from one word to a neighboring word, we’d like to find the <em>shortest</em> path of neighbors from the start word to the end. This can be done with a breadth-first search (BFS).</p>
+<pre class="python"><code>from collections import deque
+
+def find_ladder(start: str, end: str, words: set[str]):
+    queue = deque([(start, [start])])
+    visited = {start}
+
+    while queue:
+        word, path = queue.popleft()
+
+        if word == end:
+            return path
+
+        for next_word in neighbors(word, words):
+            if next_word not in visited:
+                visited.add(next_word)
+                queue.append((next_word, path + [next_word]))</code></pre>
+<p>The breadth-first nature ensures that the shortest path is returned first because BFS explores in order of increasing chain length.</p>
+<h3 id="example">Example</h3>
+<pre class="python"><code>words = load_words(&quot;words.txt&quot;)
+ladder = find_ladder(&quot;cold&quot;, &quot;warm&quot;, words)
+
+print(&quot; -&gt; &quot;.join(ladder))</code></pre>
+<pre><code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<p>Now that we can generate word ladder solutions, its probably a good time to go back and refine the word list we are using. That way we won’t get chains with uncommon or nonsense intermediate words. Otherwise, you’ll end up with chains like <code>cold -&gt; bold -&gt; bald -&gt; wald -&gt; warm</code>. <em>You</em> might know what a wald is but I sure didn’t until now. That’ll make the game feel a lot more satisfying when we port it over to the watch.</p>
+<p>Stay tuned for Part 2 in the series!</p>
+
+      <hr>
+      <details>
+        <summary>Tags</summary>
+        <ul>
+          <li><a href="/blog/tags/python">python</a></li>
+          <li><a href="/blog/tags/sensorwatch">sensorwatch</a></li>
+          <li><a href="/blog/tags/game">game</a></li>
+        </ul>
+      </details>
+    </article>
+  </main>
+
+  <footer>
+    <p>Opinions are my own.</p>
+    <p>Written with ❤️. Generated by <a href="https://bic.sh/#support" target="_blank" rel="noopener">bic</a>.</p>
+  </footer>
+
+  <script src="//unpkg.com/@highlightjs/cdn-assets@10.5.0/highlight.min.js"></script>
+  <script src="//unpkg.com/mermaid@8.13.10/dist/mermaid.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="//instant.page/5.1.0" type="module" integrity="sha384-by67kQnR+pyfy8yWP4kPO12fHKRLHZPfEsiSXR8u2IKcTdxD805MGUXBzVPnkLHw"></script>
+
+</body>
+</html>

@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title><![CDATA[ In Plain Text ]]></title>
+    <link>https://dthigpen.github.io/blog</link>
+    <atom:link href="https://dthigpen.github.io/blog/feed.rss" rel="self" type="application/rss+xml"/>
+    <description><![CDATA[ The feed of updates to In Plain Text ]]></description>
+    <item>
+  <title><![CDATA[ Word Ladders (and How to Generate Them in Python) ]]></title>
+  <link>https://dthigpen.github.io/blog/word-ladders-part-1</link>
+  <guid isPermaLink="false">bic_vlnOmzDoNU0HFBCSfP9ZyWJrn3Lt</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <p>I recently stumbled a word game called a <a href="https://en.wikipedia.org/wiki/Word_ladder">word ladder</a> while looking for small games I could make for my watch.</p>
+<p>The premise is quite simple: start with one word, end with another, and change one letter at a time until you get there. For example:</p>
+<p><code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></p>
+<p>Simple, but surprisingly satisfying, and it turns out to be a great fit for a tiny screen. In this post, I’ll walk through what word ladders are and how to generate them with a bit of Python.</p>
+<h2 id="what-is-a-word-ladder">What Is a Word Ladder?</h2>
+<p>A word ladder is a puzzle where you transform one word into another by changing a single letter at a time. Each step must be a valid word.</p>
+<p>For example: <code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></p>
+<p>Each step changes just one letter, and every intermediate word is a real word.</p>
+<p>Often, the goal is to find the <em>shortest</em> possible chain between the two words, which is where things get interesting.</p>
+<h2 id="a-bit-of-history">A Bit of History</h2>
+<p>Word ladders were actually invented by <a href="https://en.wikipedia.org/wiki/Lewis_Carroll">Lewis Carroll</a> in the late 19th century. He originally called them “Doublets” when he first published them as word puzzles in a magazine.</p>
+<p>They’ve stuck around in various forms ever since.</p>
+<h2 id="generating-word-ladders-in-python">Generating Word Ladders in Python</h2>
+<p>So what does it look like to actually generate these ladders?</p>
+<p>It turns out this maps quite nicely to a graph problem.</p>
+<h3 id="step-1-loading-words">Step 1: Loading Words</h3>
+<p>We need a list of valid words so that all intermediate words make sense. In the next post we will refine the word list, but for now anything will do as long as the words are all the same length (4 or 5 letters).</p>
+<pre class="python"><code>def load_words(path: str):
+    with open(path) as f:
+        return set(word.strip().lower() for word in f)
+
+words = load_words(&#39;words.txt&#39;)</code></pre>
+<h3 id="step-2-find-neighboring-words">Step 2: Find Neighboring Words</h3>
+<p>We need to find the “neighbors” for each word that are one letter away. This will give us all the valid moves that a player can make for each intermediate word.</p>
+<pre class="python"><code>import string
+
+def neighbors(word: str, words: set[str]):
+    for i in range(len(word)):
+        for c in string.ascii_lowercase:
+            if c != word[i]:
+                candidate = word[:i] + c + word[i+1:]
+                if candidate in words:
+                    yield candidate</code></pre>
+<p>For each letter in the given word, we try to replace it with each letter of the alphabet. If the new word is valid, it’s a neighbor. For example, <code>neighbors('cold', words)</code> might yield: <code>cord</code>, <code>sold</code>, <code>bold</code>, <code>...</code>.</p>
+<h3 id="step-3-search-for-a-path">Step 3: Search For a Path</h3>
+<p>Now that we can get from one word to a neighboring word, we’d like to find the <em>shortest</em> path of neighbors from the start word to the end. This can be done with a breadth-first search (BFS).</p>
+<pre class="python"><code>from collections import deque
+
+def find_ladder(start: str, end: str, words: set[str]):
+    queue = deque([(start, [start])])
+    visited = {start}
+
+    while queue:
+        word, path = queue.popleft()
+
+        if word == end:
+            return path
+
+        for next_word in neighbors(word, words):
+            if next_word not in visited:
+                visited.add(next_word)
+                queue.append((next_word, path + [next_word]))</code></pre>
+<p>The breadth-first nature ensures that the shortest path is returned first because BFS explores in order of increasing chain length.</p>
+<h3 id="example">Example</h3>
+<pre class="python"><code>words = load_words(&quot;words.txt&quot;)
+ladder = find_ladder(&quot;cold&quot;, &quot;warm&quot;, words)
+
+print(&quot; -&gt; &quot;.join(ladder))</code></pre>
+<pre><code>cold -&gt; cord -&gt; card -&gt; ward -&gt; warm</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<p>Now that we can generate word ladder solutions, its probably a good time to go back and refine the word list we are using. That way we won’t get chains with uncommon or nonsense intermediate words. Otherwise, you’ll end up with chains like <code>cold -&gt; bold -&gt; bald -&gt; wald -&gt; warm</code>. <em>You</em> might know what a wald is but I sure didn’t until now. That’ll make the game feel a lot more satisfying when we port it over to the watch.</p>
+<p>Stay tuned for Part 2 in the series!</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ A Google Photos Exit Strategy ]]></title>
+  <link>https://dthigpen.github.io/blog/google-photos-exit-strategy</link>
+  <guid isPermaLink="false">bic_2BalY5XM6frIweSW1QskAbjEyCd0</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <p>For a while now I’ve been more closely examining my online digital footprint. Part of that has been weighing the benefits of various services with the personal data I hand over to them. In the case of Google Photos, they act as my offsite backup for all the photos and videos I take on my phone. If my phone were to drown in the river today, I wouldn’t have to worry about losing any memories, that’s a nice peace of mind to have. As a platform, though, Google Photos offers much more than that: automatic creating of albums for people and pets, searching by picture content, a print store, and some AI enhancement tools. I’ve hardly touched those in the many years I’ve been using the service. So is it really worth it? I think not. Today, I’m beginning the process of removing my dependency on Google Photos, starting at the most basic of solutions. Eventually, we’ll work up to some full-blown Photos alternatives.</p>
+<h2 id="preface">Preface</h2>
+<p>If you are thinking about doing this, don’t be like me and wait until you get the Google storage message of doom!</p>
+<blockquote>
+<p><em>Almost out of storage (95% used). If you run out, you can’t back up photos, or send and receive email in Gmail.</em></p>
+</blockquote>
+<p>The last thing you want is to have to rush through this stuff without fully understanding it.</p>
+<h2 id="personal-requirements">Personal Requirements</h2>
+<p>The plan outlined here is pretty specific to me. You might need a more robust Google Photos alternative like Immich or Synology Photos. We’ll explore those in a future post. For now, I only seek an to answer the question: “What is the minimal solution I need to backup the photos on my phone to somewhere else on my network?”. My criteria were simple:</p>
+<ul>
+<li>Must be able to copy photos from device(s) to another device</li>
+<li>Must be relatively hands off and low-friction</li>
+<li>Must use tech that I already have</li>
+</ul>
+<h2 id="core-components">Core Components</h2>
+<p>At a minimum, the core components are:</p>
+<ul>
+<li>A server to act as the backup destination</li>
+<li>A client application to initiate a backup from client to server</li>
+<li>A transfer mechanism utilized by the client and server</li>
+</ul>
+<h3 id="the-server-photo-backup-destination">The Server (Photo Backup Destination)</h3>
+<p>Given these minimal requirements the server can basically be anything: an old Android phone, a Raspberry Pi, a Mini-PC, a NAS. I was fortunate enough to have a small Synology NAS that I wasn’t utilizing for much. Since they are built to either be always-on or follow a power schedule, it would be more than robust enough. The NAS software also makes it trivial to setup things like SMB, SSH, and external USB backups. Since these things are common among many different NAS OSes, I’ll describe what I configured in general.</p>
+<ul>
+<li>Proper users and groups for better security</li>
+<li>A folder for the backups e.g. <code>/backups/photos/</code></li>
+<li>SMB - For easy access while on the network</li>
+<li>SSH - For rsync to use, customized for security and limited access</li>
+<li>An external USB backup, so that I can make occasional backups to it and take them off-site somewhere</li>
+</ul>
+<h3 id="the-client-phone-application">The Client (Phone Application)</h3>
+<p>A quick search pointed me toward <a href="https://www.photosync-app.com/home">PhotoSync</a>, a well known player in this space. I initially went this route, opting to utilize SMB as the transfer method between PhotoSync and the NAS, since I already had that set up, but performance was abysmal. At this point, I should have attempted SFTP, but combined with the general clunkiness of the PhotoSync app experience, I searched elsewhere. One method that was sure to provide speed would be <code>rsync</code>. This is where <a href="https://termux.dev/en/">Termux</a> comes in. The Termux environment is as close to a full Linux experience as you can get on Android, and the best part is that it doesn’t require root. In this case, a quick <code>pkg install rsync</code> in the Termux terminal got me what I needed. The next section will detail the exact <code>rsync</code> command that we need.</p>
+<p>Right now, its a bit involved to execute a backup. You have to open the Termux app, then hand type out the path to the executable Bash script with the rsync command. Which this works, its far from hands-off. In order to make this a hands-off process I use another app that I already have installed: <a href="https://tasker.joaoapps.com/">Tasker</a> as well as the <a href="https://github.com/termux/termux-tasker">Termux Tasker Plugin</a> to bridge the two. To summarize, Tasker is an immensely powerful automation app. There are few things not solvable with Tasker, hence why I’ve had it on all my phones for about a decade now. The Termux Tasker Plugin simply adds an Action to Tasker to be able to execute scripts automatically. With that in place I created a simple profile that boils down to something like this pseudo-code:</p>
+<pre class="python"><code>if wifi_network == &quot;MyHomeNetwork&quot; and time == &#39;21:00&#39;:
+  execute_termux_script(&#39;backup_phone.sh&#39;)</code></pre>
+<p>Note: There are some limitations to the scripts that can get executed by the Termux plugin from Tasker. As a result I had to create a wrapper script in a special Termux folder for Tasker to call. The script that Tasker executes cannot have a shebang like <code>#!usr/bin/env bash</code> and must instead have the direct path to Termux Bash. For example:</p>
+<pre class="bash"><code>#!/data/data/com/termux/files/usr/bin/bash
+set -euo pipefail
+bash ~/path/to/backup_phone.sh</code></pre>
+<p>With that in place, the only part remaining is the actual content of the script.</p>
+<h3 id="rsync-script">Rsync Script</h3>
+<p>I want a one-way sync from the phone to the server, meaning any photo or video on the phone and not on the server will be copied up. In other words, anything that exists on the phone, will exist on the server (but not always vice versa). This is the Bash code that does this:</p>
+<pre class="bash"><code># Fill in variables with your own values, for example:
+NAS_PORT=&#39;22&#39;
+LOCAL_DIRS_ARR=( ~/storage/shared/DCIM ~/storage/shared/another-folder )
+NAS_HOST=&#39;192.168.0.123&#39;
+REMOTE_DIR=&#39;/backups/photos/phone-name/&#39;
+
+rsync -avh --partial \
+  -e &quot;ssh -p $NAS_PORT&quot; \
+  &quot;${LOCAL_DIRS_ARR[@]}&quot; \
+  &quot;$NAS_USER@$NAS_HOST:$REMOTE_DIR/&quot;</code></pre>
+<p>There are numerous enhancements you could do here. For example, loading values from .env files instead of hardcoding them, or adding a dry-run flag. You can see the modifications I made on <a href="https://github.com/dthigpen/localhosting/blob/dev/backup/backup_phone.sh">GitHub</a>.</p>
+<h2 id="time-for-takeout">Time for Takeout</h2>
+<p>With that in place and tested a few times, the last thing we need to do is perform a <a href="https://takeout.google.com/">Google Takeout</a> with all our existing Google Photos content. For me this was around 13GB and could be downloaded in several 2GB zip files. Once downloaded, I copied them over to the NAS, unzipped, and merged their folders all together before putting them in their <code>backups/photos/phone_name/</code> home.</p>
+<p>With a backup system in place and all existing photos exported, its now safe to delete the Google Photos app. 🎉</p>
+<h2 id="limitations">Limitations</h2>
+<p>This approach is very obviously a “Phase 1” (or zero) solution. One glaring aspect is that the syncing is limited to a dumb one-way sync. Meaning that if you want to delete a few old photos, you are stuck doing it twice, once on the phone to prevent it from being copied over to the NAS, and again on the NAS since there will be an already copied version over there. Alternatively, you can delete them from the phone before the sync hits.</p>
+<h2 id="next-steps">Next Steps</h2>
+<p>Even with its trade-offs, this is not a bad solution in the short term. We were able to cobble something together with very simple components and understand each detail about it. There’s something extremely valueable about being able to fully understand a system in the complexity of today’s software. That being said, some added complexity would give us a few niceties. For myself, my next step is to look into more robust self-hosted Photos alternative. Whenever that happens, I’ll make a follow up post detailing the results.</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ Simple File Backups Part 2: Custom Strategies ]]></title>
+  <link>https://dthigpen.github.io/blog/simple-file-backups-part-2</link>
+  <guid isPermaLink="false">bic_HZwAVtlDrOmLhj1ka5TKNexqGiyc</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <p>A while ago I made a <a href="https://dthigpen.github.io/blog/simple-file-backups">post</a> where I built a simple Bash script to compress and encrypt files for making backups. After using it sporadically, and changing compression/encryption schemes a few times I’ve made a few updates that I wanted to share (Or skip to the final result on <a href="https://github.com/dthigpen/backup">GitHub</a>).</p>
+<p>Now it’s easy to implement a new backup “strategy” using different encryption and compression algorithms. A strategy (or bundle of functions for encryption and compression) can be added to the script, then specified when making backups. For example if I want to use the <code>targz_gpg</code> strategy.</p>
+<pre class="bash"><code>$ ./backup_tool.sh backup /input/dir -d ~/backups -s targz_gpg
+$ ./backup_tool.sh restore ~/backups/foo.tar.gz -d ~/output/dir -s targz_gpg</code></pre>
+<h2 id="how-it-works">How it Works</h2>
+<p>As a refresher, the core logic of the script is quite simple. It’s only a a two step process for creating a backup file:</p>
+<ol type="1">
+<li>original file -&gt; <code>compress()</code> -&gt; compressed file</li>
+<li>compressed file -&gt; <code>encrypt()</code> -&gt; encrypted file (backup file)</li>
+</ol>
+<p>And for restoring a backup its the reverse:</p>
+<ol type="1">
+<li>backup file -&gt; <code>decrypt()</code> -&gt; compressed file</li>
+<li>compressed file -&gt; <code>decompress()</code> -&gt; original file</li>
+</ol>
+<p>These operations: compress, decompress, encrypt, decrypt always do the same thing, the difference lies in the algorithms used for that operation. While the original script is simple enough to update with a different set of compression and encryption algorithms, it wasn’t baked into the design (or as much as you can design in a Bash script anyway).</p>
+<p>Now, its as simple as registering a new strategy with functions each of the four operations. From there the strategy can be called out as an argument to the script. Let’s go over how it works.</p>
+<p>Strategies are registered like this:</p>
+<pre class="bash"><code># unix tar.gz and gpg strategy
+register_strategy &quot;targz_gpg&quot; targz_compress targz_decompress gpg_encrypt gpg_decrypt &quot;.tar.gz.gpg&quot;
+# universal zip and enc zip strategy
+register_strategy &quot;zip_zipenc&quot; zip_compress zip_decompress zip_encrypt zip_decrypt &quot;.zip&quot;</code></pre>
+<p>The <code>register_strategy</code> function takes in an identifier for the strategy, e.g. <code>targz_gpg</code>, the four operation functions, and a file extension (appended when creating backups). In terms of Bash data structures, it’s simply a bunch of associative arrays for each argument:</p>
+<pre class="bash"><code>declare -A COMPRESS_FUNCS
+declare -A DECOMPRESS_FUNCS
+declare -A ENCRYPT_FUNCS
+declare -A DECRYPT_FUNCS
+declare -A EXTENSIONS
+
+# Register a strategy (compression + encryption)
+# usage: register_strategy name compress decompress encrypt decrypt extension
+function register_strategy() {
+  local name=$1
+  shift
+  COMPRESS_FUNCS[&quot;$name&quot;]=$1
+  shift
+  DECOMPRESS_FUNCS[&quot;$name&quot;]=$1
+  shift
+  ENCRYPT_FUNCS[&quot;$name&quot;]=$1
+  shift
+  DECRYPT_FUNCS[&quot;$name&quot;]=$1
+  shift
+  EXTENSIONS[&quot;$name&quot;]=$1
+}</code></pre>
+<p>Once stored, we can now index into them by the name of the strategy to perform our operations. Now the compression and encryption functions become simple wrappers for executing the strategy passed into the script and stored under <code>$BACKUP_STRATEGY</code>.</p>
+<pre class="bash"><code>function compress() { ${COMPRESS_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function decompress() { ${DECOMPRESS_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function encrypt() { ${ENCRYPT_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function decrypt() { ${DECRYPT_FUNCS[$BACKUP_STRATEGY]} &quot;$@&quot;; }
+function get_ext() { echo &quot;${EXTENSIONS[$BACKUP_STRATEGY]}&quot;; }</code></pre>
+<h2 id="whats-next">What’s Next</h2>
+<p>There isn’t much more I plan to add since this tool already meets my specific needs but if I get the itch, I might expand it in these areas:</p>
+<ul>
+<li>Allow adding strategies from Bash session or environment: Useful so others would not need to modify the code of the backup tool to use their own strategies.</li>
+<li>Adding a “convert” command to convert backup files from one strategy to another without having to manually restore and re-backup each of them.</li>
+</ul>
+<p>See the full changes on <a href="https://github.com/dthigpen/backup">GitHub</a> and feel free to add an issue or pull request with your own suggestions!</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ My Task Management System in Plain Text ]]></title>
+  <link>https://dthigpen.github.io/blog/plain-text-task-management</link>
+  <guid isPermaLink="false">bic_eVh56l8wVqSMWtFnURpNyBJLGoHE</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <p>I’ve used todo.txt for my task lists for a while now, long enough to see where it shines and where it falls short. In this post, I’ll share what todo.txt is, how I use it day to day, why it works for me, and why it might not fit everyone’s workflow.</p>
+<h2 id="what-is-todotxt">What is todo.txt?</h2>
+<p>Todo.txt is a plain-text format for keeping track tasks. Since it’s a plain-text format, you don’t <em>need</em> any special software to view or edit your Todo, anything that can open a text file will do. It supports most of the usual task related features like due dates, tags, priorities, creation and completion dates. You can read more about the format on <a href="https://github.com/todotxt/todo.txt">GitHub</a> but here is a quick introduction on the syntax:</p>
+<h3 id="creation-completion-and-due-dates">Creation, Completion, and Due Dates</h3>
+<p>An open task can have a date at the beginning to denote when it was created.</p>
+<pre><code>2025-10-02 Check mail</code></pre>
+<p>An optional due date can be denoted with the general <code>key:value</code> syntax, using <code>due:&lt;date&gt;</code>.</p>
+<pre><code>2025-10-02 Check mail due:2025-10-04</code></pre>
+<p>A task can be completed by prefixing the line with a lowercase <code>x</code> and a date, <code>x &lt;completion-date&gt; &lt;creation-date&gt; ...</code></p>
+<pre><code>x 2025-10-05 2025-10-04 Check mail due:2025-10-04</code></pre>
+<h3 id="priority">Priority</h3>
+<p>A task starting with a capital letter in parentheses denotes a priority</p>
+<pre><code>(A) 2025-10-02 Check mail</code></pre>
+<h3 id="contexts">Contexts</h3>
+<p>A context can be used to indicate the place or location that a task will take place. For example, household projects may have <code>@home</code>, while email reminders might have <code>@email</code>, but you can use them however you like.</p>
+<pre><code>2025-10-02 Check mail @home</code></pre>
+<h3 id="extensions">Extensions</h3>
+<p>There isn’t much else beyond that for the todo.txt format. That’s why it’s encouraged to extend it with <code>key:value</code> pairs. Due date was an example of this that we saw earlier, another might be <code>rec:1w</code> for an app that supports recurring todo.txt tasks.</p>
+<h2 id="why-todotxt">Why todo.txt?</h2>
+<p>One of the biggest reasons I use todo.txt is that it’s just a text file. It’s freeing to know that my task list isn’t tied to an app, service, account, or subscription. It’s simply a plain file that I can open and edit anywhere.</p>
+<p>Most digital productivity tools these days trade flexibility for convenience. They have polished apps on various platforms, will sync your data seamlessly across the clouds, and integrate (way too many) AI features, but often at the expense of locking you in with proprietary formats and limited export options. With plain text, you don’t have to worry about any of that. You can read, edit, and move you list however you want.</p>
+<p>For me, it comes down to a few simple principles:</p>
+<ul>
+<li><strong>You own your data</strong>: No vender lock-in, no disappearing services.</li>
+<li><strong>Simple and Understandable</strong>: No endless options to get lost in, just your tasks right in front of you.</li>
+<li><strong>Extensible</strong>: Being plain text, anyone can build tools or scripts around it. If something’s missing, you can create it.</li>
+</ul>
+<h2 id="day-to-day">Day to Day</h2>
+<p>I keep my todo.txt file on my phone, that’s where I add most of my tasks and check them off throughout the day. Since it’s just a text file, I use Markor, a simple but capable editor that has integrations for editing todo.txt files easily. I like that it doesn’t force a specific layout or workflow; it just gets out of the way.</p>
+<p>Even though I mostly manage tasks on my phone, I keep the file synced across all my devices with Syncthing. That way, I can review or update it from my tablet or laptop if the need arises. It’s reassuring knowing it’s all local, no accounts or servers involved.</p>
+<p>I’ve also made a few small tweaks to make it my own. I wrote a script that updates my phone wallpaper with my top tasks for the day. It works well with the minimal launcher that I use and always keeps my tasks visible at a glance. Within the file, I use a few recurring contexts like <code>@home</code>, <code>@out</code>, and <code>@car</code> to group tasks by where I can do them. I also tag them with simple project labels like <code>+chore</code>, <code>+fun</code>, or <code>+quick</code>, just enough structure to stay organized without overcomplicating things.</p>
+<p>This setup has been working well for me because it’s lightweight, flexible, and easy to adapt as I change over time. It doesn’t have all the bells and whistles, but it fits how I think and work!</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ Simple File Backups ]]></title>
+  <link>https://dthigpen.github.io/blog/simple-file-backups</link>
+  <guid isPermaLink="false">bic_s62k8jaGonyxSfHYik9EJchM31eg</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <h2 id="introduction">Introduction</h2>
+<p>I like to make backups of important records, notes, and photos I have taken over the years. My personal process looks like this: compress the important directory, encrypt it, and copy it to a hard drive, USB, or cloud storage. Sounds simple enough, right? While simple, I still found myself scouring my Bash history, trying to remember what options I used with <code>gpg</code> and <code>tar</code> to create backups the last time. After a few times doing that, it seemed like the perfect candidate for a script. This post shows the makings of a simple Bash script to automate the annoying bits and allow us to make file (and directory) backups in seconds. (Or skip to the end result on <a href="https://github.com/dthigpen/backup">Github</a>)</p>
+<h2 id="why-not-use-">Why Not Use …</h2>
+<p>There are plenty of good backup solutions out there, offering things like incremental backups (Restic), cloud integration, etc. For my own use cases, I don’t need any of those features, and requiring specific binaries or a complex setup is just not worth it. As an exercise in determining what I need, I ask myself if I had to restore my backups to brand new computer or phone, how complicated would it be? So today, we’ll be going back to basics with our own script and learn some Unix commands in the process.</p>
+<h2 id="compression">Compression</h2>
+<p>Compressing the file or directory will not only save on space, but in the case of a directory consolidate it into a single file. There are numerous compression algorithms out there with various tradeoffs between compression ratio and speed, but for my purposes I just want something well supported with a reasonable compression ratio. Candidates include <strong>tar.gz</strong> and <strong>zip</strong>. I like tar.gz because it is ubiquitous with Linux but on the other hand zip is ubiquitous to Windows and probably more common overall. It’s simple to create bash functions with either one.</p>
+<pre class="bash"><code>function targz_compress {
+    local input_path=&quot;${1?Must provide an input path to compress}&quot;
+    local output_path=&quot;${2?Must provide an output file path}&quot;
+    tar -czvf &quot;${output_path}&quot; &quot;${input_path}&quot;
+}
+
+function targz_decompress {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    tar -xzvf &quot;${input_path}&quot; -C &quot;${output_path}&quot;
+}</code></pre>
+<p><strong>Note 1:</strong> The zip versions of these functions will be available in the full script at the end and in the repository.</p>
+<h2 id="encryption">Encryption</h2>
+<p>Encrypting the compressed file will make it unreadable without the specified key. Again, there are numerous algorithms out there that could work depending on your threat model. Many linux distributions have <code>gpg</code> built-in and but even <code>zip</code> has a password encryption feature (AES-256).</p>
+<pre class="bash"><code>function targz_encrypt {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    
+    gpg --symmetric --cipher-algo AES256 --output &quot;${output_path}&quot; &quot;${input_path}&quot;
+}
+
+function targz_decrypt {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+
+    gpg --output &quot;${output_path}&quot; --decrypt &quot;${input_path}&quot;
+    
+}</code></pre>
+<p><strong>Note 1:</strong> Make sure to use a strong high-entropy password here. A good way to do this is with a password manager.</p>
+<p><strong>Note 2:</strong> When using password protected zip files, the file paths are not encrypted! This is because each of the files themselves are encrypted within the zip, not the zip data itself. However, this doesn’t actually matter here since we put everything into a single archive file in the first step!</p>
+<h2 id="backup-and-restore">Backup and Restore</h2>
+<p>At this point we have a few bash functions that can do some solid compression and encryption operations, but its far from useful. Let’s make it a little more manageable by linking the operations together into backup and restore functions.</p>
+<pre class="bash"><code>function make_backup {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+
+    local tmp_path=&quot;tmp.tar.gz&quot;
+    rm -f &quot;${tmp_path}&quot;
+    targz_compress &quot;${input_path}&quot; &quot;${tmp_path}&quot;
+    targz_encrypt &quot;${tmp_path}&quot; &quot;${output_path}&quot;
+    rm -f &quot;${tmp_path}&quot;
+}
+
+function restore_backup {
+    local input_path=&quot;${1?Must provide an input path}&quot;
+    local output_path=&quot;${2?Must provide an output path}&quot;
+    
+    local tmp_path=&quot;tmp.tar.gz&quot;
+    rm -rf &quot;${tmp_path}&quot;
+    targz_decrypt &quot;${input_path}&quot; &quot;${tmp_path}&quot;
+    targz_decompress &quot;${tmp_path}&quot; &quot;${output_path}&quot;
+    rm -rf &quot;${tmp_path}&quot;
+}
+</code></pre>
+<p><strong>Note 1:</strong> Currently, these functions put the temp file in the working directory, but that’s not great. To make this more robust it should be moved to a real temp file location (using <code>mktemp</code>) and removed upon any exit signal so that no lingering unencrypted data is left around. That will be done in the final version of the script.</p>
+<h2 id="argument-parsing">Argument Parsing</h2>
+<p>Next we need a way of interacting with the script. We want it to be as simple as possible, both for our future self to remember what to pass the script and our current self writing the parser.</p>
+<p>For example, creating a backup in a specific directory might look like:</p>
+<pre class="bash"><code>$ backup_tool backup media/ -d ~/backups</code></pre>
+<p>Similarly, restoring files to a directory from a backup might look like:</p>
+<pre class="bash"><code>$ backup_tool restore ~/backups/media.tar.gz.gpg -d ~/restored-files</code></pre>
+<p>We can use familiar Bash constructs to break out the positional arguments and read the option values. This is also a good chance to work in s few improvements. First, batch processing by taking in an array of directories or backup files. Second, a passphrase entry so that it on ly needs to be input once instead of for each item in the batch.</p>
+<pre class="bash"><code>function parse_args {
+    POSITIONAL_ARGUMENTS=()
+    CUSTOM_OUTPUT_DIR=&#39;&#39;
+    ACTION=&#39;&#39;
+    FILES_TO_PROCESS=()
+    ENC_PASSWD=&#39;&#39;
+    USE_ENC_PASSWD=&#39;false&#39;
+    while [[ $# -gt 0 ]]; do
+        msg &quot;ARG: ${1-}&quot;
+        case &quot;${1-}&quot; in
+            -h | --help) usage ;;
+            -d | --destination)
+                CUSTOM_OUTPUT_DIR=&quot;${2-}&quot;
+                shift
+                if [[ ! -d &quot;${CUSTOM_OUTPUT_DIR}&quot; ]]
+                then
+                    msg &quot;${CUSTOM_OUTPUT_DIR} must be an existing directory&quot;
+                    exit 1
+                fi
+                ;;
+            -p) USE_ENC_PASSWD=&#39;true&#39;;;
+            -?*) die &quot;Unknown option: $1&quot; ;;
+            *) POSITIONAL_ARGUMENTS+=( &quot;${1-}&quot; ) ;;
+        esac
+        shift
+    done
+    if [[ ${#POSITIONAL_ARGUMENTS[@]} -lt 2 ]]
+    then
+        die &quot;Must provide more arguments. See usage with --help&quot;
+    fi
+
+    if [[ &quot;${USE_ENC_PASSWD}&quot; == &#39;true&#39; ]]
+    then
+        local tmp_input=&#39;&#39;
+        # TODO add logic to handle verifying password AND looping for non matching or empty input
+        read -s -p &#39;Enter encryption password: &#39; ENC_PASSWD
+        msg &#39;&#39;
+    fi
+    ACTION=&quot;${POSITIONAL_ARGUMENTS[0]}&quot;
+    FILES_TO_PROCESS=( &quot;${POSITIONAL_ARGUMENTS[@]:1}&quot; )
+}</code></pre>
+<h2 id="bringing-it-all-together">Bringing it all Together</h2>
+<p>Now that we have our backup functions and argument parsing we can put it all together in the main function.</p>
+<pre class="bash"><code>function main {
+    if [[ &quot;${ACTION}&quot; != &#39;backup&#39; &amp;&amp; &quot;${ACTION}&quot; != &#39;restore&#39; ]]
+    then
+        die &#39;First argument must be either &quot;backup&quot; or &quot;restore&quot;&#39;
+    fi
+    for f in &quot;${FILES_TO_PROCESS[@]}&quot;
+    do
+        if [[ ! -e &quot;${f}&quot; ]]
+        then
+            msg &quot;${f} must be an existing file or directory&quot;
+            exit 1
+        fi
+        local input_path=&quot;${f}&quot;
+        local input_filename=&quot;$(basename &quot;${input_path}&quot;)&quot;
+        local input_dir=&quot;$(dirname &quot;${input_path}&quot;)&quot;
+        local output_dir=&quot;${CUSTOM_OUTPUT_DIR:-${PWD}}&quot;
+        mkdir -p &quot;${output_dir}&quot;
+        local timestamp=&quot;$(date +&quot;%Y%m%d%H%M&quot; )&quot;
+        if [[ &quot;${ACTION}&quot; == &#39;backup&#39; ]]
+        then
+            msg &quot;Reading file or directory to archive at: ${input_path}&quot;
+            local backup_output_filename=&quot;${input_filename}.backup_${timestamp}${BACKUP_EXTENSION}&quot;
+            local backup_output_path=&quot;${output_dir}/${backup_output_filename}&quot;
+            make_backup &quot;${input_path}&quot; &quot;${backup_output_path}&quot;
+            msg &quot;Backup file created at: ${backup_output_path}&quot;
+        elif [[ &quot;${ACTION}&quot; == &#39;restore&#39; ]]
+        then
+            restore_backup &quot;${input_path}&quot; &quot;${output_dir}&quot;
+            msg &quot;Restored ${input_path} to directory ${output_dir}&quot;
+        fi
+    done
+}</code></pre>
+<p>That’s really all there is to it, in under 250 lines of Bash we have a stellar file backup utility! Check out the <a href="https://github.com/dthigpen/backup">source code</a> on GitHub for the full script.</p> ]]></description>
+</item>
+<item>
+  <title><![CDATA[ Hello World ]]></title>
+  <link>https://dthigpen.github.io/blog/hello-world</link>
+  <guid isPermaLink="false">bic_GkowUcnUYI5A2XB3x9Qrs7PV10z4</guid>
+  <pubDate>Wed, 17 Jun 2026 03:52:19 +0000</pubDate>
+  <description><![CDATA[ <p>Not much to see just yet, hopefully more posts to come!</p>
+<p>But while I have you here, I’ll tell you a bit about my interests that may come up in posts.</p>
+<h2 id="computing">Computing</h2>
+<p>Computing is a pretty important part of my life. I’ve had an affinity toward building (the digital) things for most of my life. Predictably, I’m a software engineer by trade and nothing gives me more satisfaction than solving problems with code! My side projects are usually anything from web apps to ESP32 trinkets.</p>
+<h2 id="sustainability">Sustainability</h2>
+<p>More recently I’ve started trying to live a more sustainable life. It’s been exciting making those changes and I look forward to learning more. One idea that I want to explore more deeply is <a href="https://permacomputing.net/">permacomputing</a>. I love the idea of making our digital footprint less wasteful and more intentional.</p>
+<h2 id="nature">Nature</h2>
+<p>During the warmer months I enjoy hiking and camping in the great outdoors. Nothing beats stepping away from technology completely and taking in the undescribable beauty of nature!</p> ]]></description>
+</item>
+
+  </channel>
+</rss>

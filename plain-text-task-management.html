@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Task Management System in Plain Text | In Plain Text</title>
+  <link rel="alternate" type="application/rss+xml" title="RSS Feed for In Plain Text" href="/blog/feed.rss">
+  <link rel="stylesheet" href="https://unpkg.com/sanitize.css@^12.0.1/evergreen.css">
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/@highlightjs/cdn-assets@10.5.0/styles/default.min.css">
+  <link rel="stylesheet" href="/blog/css/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>In Plain Text</h1>
+
+    <nav>
+      <a href="/blog">Home</a>
+      <a href="/blog/search">Search</a>
+      <a href="/blog/about">About</a>
+      <a href="/blog/tags">Tags</a>
+    </nav>
+  </header>
+
+  <main data-pagefind-body>
+    <article>
+      <h1>My Task Management System in Plain Text</h1>
+      <small>Last modified June 17, 2026</small>
+      <hr>
+
+      <p>I’ve used todo.txt for my task lists for a while now, long enough to see where it shines and where it falls short. In this post, I’ll share what todo.txt is, how I use it day to day, why it works for me, and why it might not fit everyone’s workflow.</p>
+<h2 id="what-is-todotxt">What is todo.txt?</h2>
+<p>Todo.txt is a plain-text format for keeping track tasks. Since it’s a plain-text format, you don’t <em>need</em> any special software to view or edit your Todo, anything that can open a text file will do. It supports most of the usual task related features like due dates, tags, priorities, creation and completion dates. You can read more about the format on <a href="https://github.com/todotxt/todo.txt">GitHub</a> but here is a quick introduction on the syntax:</p>
+<h3 id="creation-completion-and-due-dates">Creation, Completion, and Due Dates</h3>
+<p>An open task can have a date at the beginning to denote when it was created.</p>
+<pre><code>2025-10-02 Check mail</code></pre>
+<p>An optional due date can be denoted with the general <code>key:value</code> syntax, using <code>due:&lt;date&gt;</code>.</p>
+<pre><code>2025-10-02 Check mail due:2025-10-04</code></pre>
+<p>A task can be completed by prefixing the line with a lowercase <code>x</code> and a date, <code>x &lt;completion-date&gt; &lt;creation-date&gt; ...</code></p>
+<pre><code>x 2025-10-05 2025-10-04 Check mail due:2025-10-04</code></pre>
+<h3 id="priority">Priority</h3>
+<p>A task starting with a capital letter in parentheses denotes a priority</p>
+<pre><code>(A) 2025-10-02 Check mail</code></pre>
+<h3 id="contexts">Contexts</h3>
+<p>A context can be used to indicate the place or location that a task will take place. For example, household projects may have <code>@home</code>, while email reminders might have <code>@email</code>, but you can use them however you like.</p>
+<pre><code>2025-10-02 Check mail @home</code></pre>
+<h3 id="extensions">Extensions</h3>
+<p>There isn’t much else beyond that for the todo.txt format. That’s why it’s encouraged to extend it with <code>key:value</code> pairs. Due date was an example of this that we saw earlier, another might be <code>rec:1w</code> for an app that supports recurring todo.txt tasks.</p>
+<h2 id="why-todotxt">Why todo.txt?</h2>
+<p>One of the biggest reasons I use todo.txt is that it’s just a text file. It’s freeing to know that my task list isn’t tied to an app, service, account, or subscription. It’s simply a plain file that I can open and edit anywhere.</p>
+<p>Most digital productivity tools these days trade flexibility for convenience. They have polished apps on various platforms, will sync your data seamlessly across the clouds, and integrate (way too many) AI features, but often at the expense of locking you in with proprietary formats and limited export options. With plain text, you don’t have to worry about any of that. You can read, edit, and move you list however you want.</p>
+<p>For me, it comes down to a few simple principles:</p>
+<ul>
+<li><strong>You own your data</strong>: No vender lock-in, no disappearing services.</li>
+<li><strong>Simple and Understandable</strong>: No endless options to get lost in, just your tasks right in front of you.</li>
+<li><strong>Extensible</strong>: Being plain text, anyone can build tools or scripts around it. If something’s missing, you can create it.</li>
+</ul>
+<h2 id="day-to-day">Day to Day</h2>
+<p>I keep my todo.txt file on my phone, that’s where I add most of my tasks and check them off throughout the day. Since it’s just a text file, I use Markor, a simple but capable editor that has integrations for editing todo.txt files easily. I like that it doesn’t force a specific layout or workflow; it just gets out of the way.</p>
+<p>Even though I mostly manage tasks on my phone, I keep the file synced across all my devices with Syncthing. That way, I can review or update it from my tablet or laptop if the need arises. It’s reassuring knowing it’s all local, no accounts or servers involved.</p>
+<p>I’ve also made a few small tweaks to make it my own. I wrote a script that updates my phone wallpaper with my top tasks for the day. It works well with the minimal launcher that I use and always keeps my tasks visible at a glance. Within the file, I use a few recurring contexts like <code>@home</code>, <code>@out</code>, and <code>@car</code> to group tasks by where I can do them. I also tag them with simple project labels like <code>+chore</code>, <code>+fun</code>, or <code>+quick</code>, just enough structure to stay organized without overcomplicating things.</p>
+<p>This setup has been working well for me because it’s lightweight, flexible, and easy to adapt as I change over time. It doesn’t have all the bells and whistles, but it fits how I think and work!</p>
+
+      <hr>
+      <details>
+        <summary>Tags</summary>
+        <ul>
+          <li><a href="/blog/tags/todotxt">todotxt</a></li>
+          <li><a href="/blog/tags/plaintext">plaintext</a></li>
+        </ul>
+      </details>
+    </article>
+  </main>
+
+  <footer>
+    <p>Opinions are my own.</p>
+    <p>Written with ❤️. Generated by <a href="https://bic.sh/#support" target="_blank" rel="noopener">bic</a>.</p>
+  </footer>
+
+  <script src="//unpkg.com/@highlightjs/cdn-assets@10.5.0/highlight.min.js"></script>
+  <script src="//unpkg.com/mermaid@8.13.10/dist/mermaid.min.js"></script>
+  <script src="/js/script.js"></script>
+  <script src="//instant.page/5.1.0" type="module" integrity="sha384-by67kQnR+pyfy8yWP4kPO12fHKRLHZPfEsiSXR8u2IKcTdxD805MGUXBzVPnkLHw"></script>
+
+</body>
+</html>
